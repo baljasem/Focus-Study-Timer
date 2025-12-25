@@ -56,10 +56,7 @@ select,button{padding:8px 12px;margin:6px;font-size:16px;border-radius:10px;bord
 <div id="history" class="history hidden"></div>
 
 <script>
-let boxes=[], current=0;
-let sessionStart=0, totalSessionSeconds=0;
-let breakSeconds=0, breakRunning=false;
-let audioCtx=null;  // single AudioContext for mobile
+let boxes=[], sessionStart=0, totalSessionSeconds=0, breakSeconds=0, breakRunning=false;
 
 const hoursSel=document.getElementById("hours");
 const minutesSel=document.getElementById("minutes");
@@ -81,8 +78,6 @@ function startSession(){
   const count=Math.floor(totalMinutes/boxMinutes);
   sessionStart=Date.now();
 
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)(); // single context for mobile
-
   const grid=document.getElementById("grid");
   grid.innerHTML=""; boxes=[];
   grid.classList.remove("hidden");
@@ -96,14 +91,7 @@ function startSession(){
   }
 
   document.getElementById("cancelBtn").classList.remove("hidden");
-
-  // Delay slightly to fix mobile timing issues
-  setTimeout(()=>{ requestAnimationFrame(updateLoop); }, 100);
-
-  // fallback interval in case requestAnimationFrame is paused
-  if(!window.timerInterval){
-    window.timerInterval=setInterval(updateLoop, 1000);
-  }
+  requestAnimationFrame(updateLoop);
 }
 
 function updateLoop(){
@@ -112,17 +100,17 @@ function updateLoop(){
   plant.style.height=(elapsed/totalSessionSeconds*100)+"%";
 
   let accumulated=0;
-  boxes.forEach((b,i)=>{
-    let start=accumulated, end=accumulated+b.duration; accumulated=end;
-    if(elapsed>=end){ b.el.className="box done"; b.el.textContent=format(0); }
-    else if(elapsed>=start){ b.el.className="box active"; b.el.textContent=format(Math.ceil(end-elapsed)); }
+  boxes.forEach((b)=>{
+    let start=accumulated,end=accumulated+b.duration; accumulated=end;
+    if(elapsed>=end){ b.el.className="box done"; b.el.textContent=format(0);}
+    else if(elapsed>=start){ b.el.className="box active"; b.el.textContent=format(Math.ceil(end-elapsed));}
   });
 
   if(elapsed>=totalSessionSeconds && !breakRunning){
     tripleBell();
-    if(breakSeconds>0){ startBreak(); } 
-    else{ saveSession(elapsed); clearInterval(window.timerInterval); return; }
-  }
+    if(breakSeconds>0) startBreak(); 
+    else saveSession(elapsed);
+  } else requestAnimationFrame(updateLoop);
 }
 
 function startBreak(){
@@ -135,7 +123,7 @@ function startBreak(){
   function loop(){
     let left=Math.max(0,(end-Date.now())/1000);
     d.textContent=format(left);
-    if(left<=0){ tripleBell(); saveSession(totalSessionSeconds); clearInterval(window.timerInterval); return; }
+    if(left<=0){ tripleBell(); saveSession(totalSessionSeconds); return;}
     requestAnimationFrame(loop);
   }
   loop();
@@ -143,8 +131,7 @@ function startBreak(){
 
 function cancelSession(){
   let elapsed=Math.min((Date.now()-sessionStart)/1000,totalSessionSeconds);
-  saveSession(elapsed);
-  resetAll();
+  saveSession(elapsed); resetAll();
 }
 
 function saveSession(seconds){
@@ -175,12 +162,10 @@ function tripleBell(){
   for(let i=0;i<3;i++){
     setTimeout(()=>{
       navigator.vibrate?.(60);
-      const o=audioCtx.createOscillator();
-      o.frequency.value=600;
-      o.connect(audioCtx.destination);
-      o.start();
-      o.stop(audioCtx.currentTime + 0.15);
-    }, i*350);
+      const ctx=new AudioContext();
+      const o=ctx.createOscillator(); o.frequency.value=600;
+      o.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+0.15);
+    },i*350);
   }
 }
 
@@ -191,6 +176,5 @@ if ('serviceWorker' in navigator) {
   .catch(err=>console.error('SW registration failed:', err));
 }
 </script>
-
 </body>
 </html>
