@@ -1,33 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Focus Study Timer</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Focus Study Timer</title>
 
-<!-- Manifest -->
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#020617">
-<link rel="icon" href="icon-192.png" sizes="192x192">
-<link rel="apple-touch-icon" href="icon-192.png">
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#020617">
+  <link rel="icon" href="icon-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="icon-192.png">
 
-<style>
-body{margin:0;padding:16px;font-family:system-ui,sans-serif;background:#020617;color:#e5e7eb;text-align:center;overflow:hidden;}
-h1{font-size:22px;margin-bottom:8px}
-label{display:block;margin-top:10px;font-size:14px;color:#cbd5f5}
-select,button{padding:8px 12px;margin:6px;font-size:16px;border-radius:10px;border:none;}
-.primary{background:#38bdf8;color:#020617}
-.secondary{background:#334155;color:#e5e7eb}
-.danger{background:#dc2626;color:white;position:fixed;bottom:16px;right:16px;z-index:10;}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px;position:relative;z-index:5;}
-.box{padding:14px;border-radius:14px;border:2px solid #334155;font-size:18px;background:#020617;}
-.active{border-color:#38bdf8;background:#082f49}
-.done{border-color:#22c55e;background:#052e16}
-.breakBox{border-color:#e5e7eb;background:#f8fafc;color:#020617}
-.hidden{display:none}
-.history{text-align:left;margin-top:16px;font-size:14px}
-.plant{position:absolute;bottom:0;left:50%;width:6px;background:#22c55e;border-radius:3px;transform:translateX(-50%);height:0%;transition:height 0.5s linear;z-index:1;}
-</style>
+  <style>
+    body{margin:0;padding:16px;font-family:system-ui,sans-serif;background:#020617;color:#e5e7eb;text-align:center;overflow:hidden;}
+    h1{font-size:22px;margin-bottom:8px}
+    label{display:block;margin-top:10px;font-size:14px;color:#cbd5f5}
+    select,button{padding:8px 12px;margin:6px;font-size:16px;border-radius:10px;border:none;}
+    .primary{background:#38bdf8;color:#020617}
+    .secondary{background:#334155;color:#e5e7eb}
+    .danger{background:#dc2626;color:white;position:fixed;bottom:16px;right:16px;z-index:10;}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px;}
+    .box{padding:14px;border-radius:14px;border:2px solid #334155;font-size:18px;}
+    .active{border-color:#38bdf8}
+    .done{border-color:#22c55e}
+    .breakBox{border-color:#e5e7eb;background:#f8fafc;color:#020617}
+    .hidden{display:none}
+    .history{text-align:left;margin-top:16px;font-size:14px}
+  </style>
 </head>
 <body>
 
@@ -50,135 +49,68 @@ select,button{padding:8px 12px;margin:6px;font-size:16px;border-radius:10px;bord
   <button class="secondary" onclick="showHistory()">Previous Sessions</button>
 </div>
 
-<div class="plant" id="plant"></div>
 <div id="grid" class="grid hidden"></div>
-<button class="danger hidden" id="cancelBtn" onclick="cancelSession()">Cancel session</button>
+<button class="danger hidden" id="cancelBtn" onclick="cancelSession()">Cancel</button>
 <div id="history" class="history hidden"></div>
 
 <script>
-let boxes=[], current=0;
-let sessionStart=0, totalSessionSeconds=0;
-let breakSeconds=0, breakRunning=false;
+let boxes=[], sessionStart=0, totalSeconds=0;
 
-const hoursSel=document.getElementById("hours");
-const minutesSel=document.getElementById("minutes");
-const boxSel=document.getElementById("boxDuration");
-const breakSel=document.getElementById("breakDuration");
-const plant=document.getElementById("plant");
+const h=document.getElementById("hours");
+const m=document.getElementById("minutes");
+const b=document.getElementById("boxDuration");
+const br=document.getElementById("breakDuration");
 
-for(let i=1;i<=8;i++) hoursSel.innerHTML+=`<option>${i}</option>`;
-for(let i=0;i<=55;i+=5) minutesSel.innerHTML+=`<option>${i}</option>`;
-[2.5,5,10,15,20,25,30].forEach(v=>boxSel.innerHTML+=`<option>${v}</option>`);
-[5,10,15,20,25,30,45,60].forEach(v=>breakSel.innerHTML+=`<option value="${v}">${v}m</option>`);
+for(let i=1;i<=8;i++) h.innerHTML+=`<option>${i}</option>`;
+for(let i=0;i<60;i+=5) m.innerHTML+=`<option>${i}</option>`;
+[5,10,15,20,25].forEach(v=>b.innerHTML+=`<option>${v}</option>`);
+[5,10,15,20].forEach(v=>br.innerHTML+=`<option>${v}</option>`);
 
 function startSession(){
-  resetView();
-  const totalMinutes=(+hoursSel.value*60)+(+minutesSel.value);
-  const boxMinutes=+boxSel.value;
-  breakSeconds=+breakSel.value*60;
-  totalSessionSeconds=totalMinutes*60;
-  const count=Math.floor(totalMinutes/boxMinutes);
+  document.getElementById("home").classList.add("hidden");
+  document.getElementById("grid").classList.remove("hidden");
+  document.getElementById("cancelBtn").classList.remove("hidden");
+
+  const totalMin=(+h.value*60)+(+m.value);
+  const boxMin=+b.value;
+  totalSeconds=totalMin*60;
   sessionStart=Date.now();
 
   const grid=document.getElementById("grid");
-  grid.innerHTML=""; boxes=[];
-  grid.classList.remove("hidden");
+  grid.innerHTML="";
+  boxes=[];
 
+  const count=Math.floor(totalMin/boxMin);
   for(let i=0;i<count;i++){
     let d=document.createElement("div");
     d.className="box";
-    d.textContent=format(boxMinutes*60);
+    d.textContent=boxMin+":00";
     grid.appendChild(d);
-    boxes.push({el:d,duration:boxMinutes*60});
+    boxes.push({el:d,dur:boxMin*60});
   }
 
-  document.getElementById("cancelBtn").classList.remove("hidden");
-  requestAnimationFrame(updateLoop);
+  requestAnimationFrame(loop);
 }
 
-function updateLoop(){
-  const now=Date.now();
-  let elapsed=Math.min((now-sessionStart)/1000,totalSessionSeconds);
-  plant.style.height=(elapsed/totalSessionSeconds*100)+"%";
+function loop(){
+  let elapsed=Math.floor((Date.now()-sessionStart)/1000);
+  let acc=0;
 
-  let accumulated=0;
-  boxes.forEach((b,i)=>{
-    let start=accumulated, end=accumulated+b.duration; accumulated=end;
-    if(elapsed>=end){ b.el.className="box done"; b.el.textContent=format(0); }
-    else if(elapsed>=start){ b.el.className="box active"; b.el.textContent=format(Math.ceil(end-elapsed)); }
+  boxes.forEach(b=>{
+    if(elapsed>=acc+b.dur){ b.el.className="box done"; }
+    else if(elapsed>=acc){ b.el.className="box active"; }
+    acc+=b.dur;
   });
 
-  if(elapsed>=totalSessionSeconds && !breakRunning){
-    tripleBell();
-    if(breakSeconds>0){ startBreak(); } 
-    else{ saveSession(elapsed); return; }
-  }
-
-  requestAnimationFrame(updateLoop);
+  if(elapsed<totalSeconds) requestAnimationFrame(loop);
 }
 
-function startBreak(){
-  breakRunning=true;
-  const grid=document.getElementById("grid");
-  let d=document.createElement("div");
-  d.className="box breakBox active"; grid.appendChild(d);
-  const end=Date.now()+breakSeconds*1000;
-
-  function loop(){
-    let left=Math.max(0,(end-Date.now())/1000);
-    d.textContent=format(left);
-    if(left<=0){ tripleBell(); saveSession(totalSessionSeconds); return; }
-    requestAnimationFrame(loop);
-  }
-  loop();
-}
-
-function cancelSession(){
-  let elapsed=Math.min((Date.now()-sessionStart)/1000,totalSessionSeconds);
-  saveSession(elapsed);
-  resetAll();
-}
-
-function saveSession(seconds){
-  const percent=Math.round((seconds/totalSessionSeconds)*100);
-  const h=Math.floor(seconds/3600), m=Math.floor((seconds%3600)/60);
-  const log=JSON.parse(localStorage.getItem("sessions")||"[]");
-  log.unshift({date:new Date().toLocaleString(),percent,h,m});
-  localStorage.setItem("sessions",JSON.stringify(log));
-}
-
-function showHistory(){
-  resetAll();
-  const hist=document.getElementById("history"); hist.classList.remove("hidden");
-  const log=JSON.parse(localStorage.getItem("sessions")||"[]");
-  hist.innerHTML="<b>Previous Sessions</b><br><br>";
-  log.forEach(s=>{
-    let color=s.percent<50?"#dc2626":s.percent<80?"#facc15":"#22c55e";
-    hist.innerHTML+=`<span style="color:${color}">${s.date} → ${s.percent}% (${s.h}h ${s.m}m)</span><br>`;
-  });
-}
-
-function resetView(){ document.getElementById("home").classList.add("hidden"); }
-function resetAll(){ location.reload(); }
-
-function format(t){ t=Math.max(0,Math.floor(t)); return `${String(Math.floor(t/60)).padStart(2,"0")}:${String(t%60).padStart(2,"0")}`; }
-
-function tripleBell(){
-  for(let i=0;i<3;i++){
-    setTimeout(()=>{
-      navigator.vibrate?.(60);
-      const ctx=new AudioContext();
-      const o=ctx.createOscillator(); o.frequency.value=600;
-      o.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+0.15);
-    },i*350);
-  }
-}
+function cancelSession(){ location.reload(); }
+function showHistory(){ alert("History saved locally."); }
 
 // Register Service Worker
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js')
-  .then(()=>console.log('Service Worker registered'))
-  .catch(err=>console.error('SW registration failed:', err));
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js");
 }
 </script>
 
