@@ -65,7 +65,6 @@ const boxSel=document.getElementById("boxDuration");
 const breakSel=document.getElementById("breakDuration");
 const plant=document.getElementById("plant");
 
-// Populate dropdowns
 for(let i=1;i<=8;i++) hoursSel.innerHTML+=`<option>${i}</option>`;
 for(let i=0;i<=55;i+=5) minutesSel.innerHTML+=`<option>${i}</option>`;
 [2.5,5,10,15,20,25,30].forEach(v=>boxSel.innerHTML+=`<option>${v}</option>`);
@@ -89,7 +88,7 @@ function startSession(){
     d.className="box";
     d.textContent=format(boxMinutes*60);
     grid.appendChild(d);
-    boxes.push({el:d,duration:boxMinutes*60});
+    boxes.push({el:d,duration:boxMinutes*60, done:false});
   }
 
   document.getElementById("cancelBtn").classList.remove("hidden");
@@ -102,17 +101,25 @@ function updateLoop(){
   plant.style.height=(elapsed/totalSessionSeconds*100)+"%";
 
   let accumulated=0;
-  boxes.forEach(b=>{
-    let start=accumulated, end=accumulated+b.duration; accumulated=end;
+  boxes.forEach((b,i)=>{
+    let start=accumulated, end=accumulated+b.duration;
+    accumulated=end;
+
+    if(elapsed>=end && !b.done){
+      b.done = true;
+      tripleBell();
+    }
+
     if(elapsed>=end){ b.el.className="box done"; b.el.textContent=format(0); }
     else if(elapsed>=start){ b.el.className="box active"; b.el.textContent=format(Math.ceil(end-elapsed)); }
   });
 
   if(elapsed>=totalSessionSeconds && !breakRunning){
-    tripleBell();
-    if(breakSeconds>0) startBreak(); 
+    if(breakSeconds>0) startBreak();
     else saveSession(elapsed);
-  } else requestAnimationFrame(updateLoop);
+  } else {
+    requestAnimationFrame(updateLoop);
+  }
 }
 
 function startBreak(){
@@ -125,7 +132,7 @@ function startBreak(){
   function loop(){
     let left=Math.max(0,(end-Date.now())/1000);
     d.textContent=format(left);
-    if(left<=0){ tripleBell(); saveSession(totalSessionSeconds); breakRunning=false; return; }
+    if(left<=0){ tripleBell(); saveSession(totalSessionSeconds); return; }
     requestAnimationFrame(loop);
   }
   loop();
@@ -174,10 +181,11 @@ function tripleBell(){
 
 // Register Service Worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js?v=2')
+  navigator.serviceWorker.register('sw.js')
   .then(()=>console.log('Service Worker registered'))
   .catch(err=>console.error('SW registration failed:', err));
 }
 </script>
+
 </body>
 </html>
