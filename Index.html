@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Focus Study Timer</title>
 
+<!-- Link to manifest -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#020617">
+<link rel="icon" href="icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="icon-192.png">
+
 <style>
 body{
   margin:0;
@@ -93,10 +99,10 @@ select,button{
   <select id="hours"></select> :
   <select id="minutes"></select>
 
-  <label>Box duration</label>
+  <label>Box duration (minutes)</label>
   <select id="boxDuration"></select>
 
-  <label>Break after session</label>
+  <label>Break after session (minutes)</label>
   <select id="breakDuration">
     <option value="0">No break</option>
   </select>
@@ -263,6 +269,14 @@ function tripleBell(){
     },i*350);
   }
 }
+
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js')
+  .then(()=>console.log('Service Worker registered'))
+  .catch(err=>console.error('SW registration failed:', err));
+}
 </script>
+
 </body>
 </html>
