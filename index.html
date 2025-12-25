@@ -1,229 +1,260 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Focus Study Timer</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Focus Study Timer</title>
 
-  <link rel="manifest" href="./manifest.json">
-  <meta name="theme-color" content="#020617">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#020617">
+<link rel="icon" href="icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="icon-192.png">
 
-  <style>
-    body {
-      font-family: system-ui, sans-serif;
-      background: #020617;
-      color: #e5e7eb;
-      margin: 0;
-      padding: 20px;
-      text-align: center;
-    }
-    button {
-      margin: 6px;
-      padding: 10px 14px;
-      font-size: 16px;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-    }
-    .primary { background: #2563eb; color: white; }
-    .danger { background: #dc2626; color: white; }
-    .success { background: #16a34a; color: white; }
-    .hidden { display: none; }
-    .box {
-      border: 2px solid #334155;
-      padding: 12px;
-      margin: 8px 0;
-      border-radius: 8px;
-    }
-  </style>
+<style>
+body{
+  margin:0;padding:16px;font-family:system-ui,sans-serif;
+  background:#020617;color:#e5e7eb;text-align:center;
+}
+h1{font-size:22px;margin-bottom:4px}
+#sessionInfo{font-size:14px;color:#94a3b8;margin-bottom:10px}
+
+label{display:block;margin-top:10px;font-size:14px;color:#cbd5f5}
+select,button{
+  padding:8px 12px;margin:6px;font-size:16px;
+  border-radius:10px;border:none;
+}
+.primary{background:#38bdf8;color:#020617}
+.secondary{background:#334155;color:#e5e7eb}
+.danger{background:#dc2626;color:white}
+.success{background:#22c55e;color:#020617}
+
+.grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:10px;margin-top:16px;
+}
+.box{
+  padding:14px;border-radius:14px;
+  border:2px solid #334155;font-size:18px;
+}
+.active{border-color:#38bdf8;background:#082f49}
+.done{border-color:#22c55e;background:#052e16}
+.breakBox{border-color:#e5e7eb;background:#f8fafc;color:#020617}
+.hidden{display:none}
+
+.controls{margin-top:12px}
+.history{text-align:left;margin-top:16px;font-size:14px}
+</style>
 </head>
 
 <body>
 
 <h1>Focus Study Timer</h1>
-<div id="sessionInfo"></div>
+<div id="sessionInfo" class="hidden"></div>
 
-<div id="boxes"></div>
+<!-- HOME -->
+<div id="home">
+  <label>Session duration</label>
+  <select id="hours"></select> :
+  <select id="minutes"></select>
 
-<div>
-  <button id="startBtn" class="primary">Start Session</button>
-  <button id="pauseBtn" class="primary hidden">Pause</button>
-  <button id="resumeBtn" class="primary hidden">Resume</button>
-  <button id="addBoxBtn">Add Extra Box</button>
+  <label>Box duration (minutes)</label>
+  <select id="boxDuration"></select>
+
+  <label>Break after session (minutes)</label>
+  <select id="breakDuration">
+    <option value="0">No break</option>
+  </select>
+
+  <br>
+  <button class="primary" onclick="startSession()">Start Session</button>
+  <button class="secondary" onclick="toggleHistory()">Previous Sessions</button>
 </div>
 
-<div>
-  <button id="cancelBtn" class="danger hidden">Cancel Session</button>
-  <button id="repeatBtn" class="success hidden">Repeat Session</button>
+<!-- SESSION -->
+<div id="session" class="hidden">
+  <div id="grid" class="grid"></div>
+
+  <div class="controls">
+    <button class="secondary" onclick="pauseSession()">Pause</button>
+    <button class="secondary" onclick="addExtraBox()">Add Extra Box</button>
+    <button class="danger" id="cancelBtn" onclick="cancelSession()">Cancel Session</button>
+    <button class="success hidden" id="repeatBtn" onclick="repeatSession()">Repeat Session</button>
+  </div>
 </div>
 
-<div>
-  <button id="historyToggle">Previous Sessions</button>
-</div>
-
-<div id="history" class="hidden"></div>
+<div id="history" class="history hidden"></div>
 
 <script>
-/* ---------------- STATE ---------------- */
-let boxes = JSON.parse(localStorage.getItem("boxes")) || [25, 5];
-let currentIndex = 0;
-let remaining = 0;
-let interval = null;
-let paused = false;
-let sessionStart = null;
+/* ---------- STATE ---------- */
+let boxes=[], currentIndex=0;
+let sessionStart=0, paused=false, pauseAt=0;
+let totalSessionSeconds=0, boxSeconds=0, breakSeconds=0;
+let inBreak=false;
 
-/* ---------------- INIT ---------------- */
-renderBoxes();
-renderSessionInfo();
+/* ---------- SELECTS ---------- */
+const hoursSel=document.getElementById("hours");
+const minutesSel=document.getElementById("minutes");
+const boxSel=document.getElementById("boxDuration");
+const breakSel=document.getElementById("breakDuration");
 
-/* ---------------- UI ---------------- */
-function renderBoxes() {
-  const c = document.getElementById("boxes");
-  c.innerHTML = "";
-  boxes.forEach((m, i) => {
-    const d = document.createElement("div");
-    d.className = "box";
-    d.id = "box-" + i;
-    d.textContent = `Box ${i+1}: ${m} min`;
-    c.appendChild(d);
-  });
+for(let i=1;i<=8;i++) hoursSel.innerHTML+=`<option>${i}</option>`;
+for(let i=0;i<=55;i+=5) minutesSel.innerHTML+=`<option>${i}</option>`;
+[2.5,5,10,15,20,25,30].forEach(v=>boxSel.innerHTML+=`<option>${v}</option>`);
+[5,10,15,20,25,30,45,60].forEach(v=>breakSel.innerHTML+=`<option value="${v}">${v}m</option>`);
+
+/* ---------- PERSIST SETTINGS ---------- */
+["hours","minutes","boxDuration","breakDuration"].forEach(id=>{
+  const el=document.getElementById(id);
+  const saved=localStorage.getItem(id);
+  if(saved) el.value=saved;
+  el.onchange=()=>localStorage.setItem(id,el.value);
+});
+
+/* ---------- SESSION ---------- */
+function startSession(){
+  document.getElementById("home").classList.add("hidden");
+  document.getElementById("session").classList.remove("hidden");
+
+  const totalMinutes=(+hoursSel.value*60)+(+minutesSel.value);
+  boxSeconds=+boxSel.value*60;
+  breakSeconds=+breakSel.value*60;
+  totalSessionSeconds=totalMinutes*60;
+
+  document.getElementById("sessionInfo").textContent=
+    `Session: ${hoursSel.value}h ${minutesSel.value}m · Box: ${boxSel.value}m`;
+  document.getElementById("sessionInfo").classList.remove("hidden");
+
+  const grid=document.getElementById("grid");
+  grid.innerHTML=""; boxes=[]; currentIndex=0;
+  const count=Math.floor(totalSessionSeconds/boxSeconds);
+
+  for(let i=0;i<count;i++){
+    const d=document.createElement("div");
+    d.className="box";
+    grid.appendChild(d);
+    boxes.push({el:d,remaining:boxSeconds});
+  }
+
+  sessionStart=Date.now();
+  paused=false;
+  inBreak=false;
+  loop();
 }
 
-function renderSessionInfo() {
-  const total = boxes.reduce((a,b)=>a+b,0);
-  document.getElementById("sessionInfo").textContent =
-    `Total session: ${total} minutes`;
-}
+function loop(){
+  if(paused) return;
 
-/* ---------------- TIMER ---------------- */
-function startSession() {
-  sessionStart = Date.now();
-  currentIndex = 0;
-  startBox();
-  toggleControls(true);
-}
+  if(currentIndex < boxes.length){
+    const b=boxes[currentIndex];
+    b.el.className="box active";
+    b.remaining--;
 
-function startBox() {
-  if (currentIndex >= boxes.length) {
-    finishSession();
+    b.el.textContent=format(b.remaining);
+
+    if(b.remaining<=0){
+      b.el.className="box done";
+      tripleBell();
+      currentIndex++;
+    }
+  }else if(!inBreak){
+    inBreak=true;
+    tripleBell();
+    showRepeat();
+    if(breakSeconds>0) startBreak();
+    saveSession(true);
     return;
   }
-  remaining = boxes[currentIndex] * 60;
-  updateBoxUI();
-  tick();
+
+  setTimeout(loop,1000);
 }
 
-function tick() {
-  interval = setInterval(() => {
-    if (paused) return;
-    remaining--;
-    updateBoxUI();
-    if (remaining <= 0) {
-      bell();
-      clearInterval(interval);
-      currentIndex++;
-      startBox();
-    }
-  }, 1000);
+function pauseSession(){
+  paused=!paused;
+  if(!paused) loop();
 }
 
-function updateBoxUI() {
-  boxes.forEach((_, i) => {
-    const el = document.getElementById("box-" + i);
-    if (!el) return;
-    if (i === currentIndex) {
-      el.textContent =
-        `Box ${i+1}: ${format(remaining)}`;
-    }
-  });
+function addExtraBox(){
+  const d=document.createElement("div");
+  d.className="box";
+  document.getElementById("grid").appendChild(d);
+  boxes.push({el:d,remaining:boxSeconds});
 }
 
-function pauseSession() {
-  paused = true;
-  document.getElementById("pauseBtn").classList.add("hidden");
-  document.getElementById("resumeBtn").classList.remove("hidden");
-}
-
-function resumeSession() {
-  paused = false;
-  document.getElementById("pauseBtn").classList.remove("hidden");
-  document.getElementById("resumeBtn").classList.add("hidden");
-}
-
-/* ---------------- FINISH ---------------- */
-function finishSession() {
-  bell();
-  saveSession(true);
-  document.getElementById("repeatBtn").classList.remove("hidden");
-  document.getElementById("cancelBtn").classList.add("hidden");
-}
-
-function cancelSession() {
+function cancelSession(){
   saveSession(false);
   location.reload();
 }
 
-function repeatSession() {
+function repeatSession(){
   location.reload();
 }
 
-/* ---------------- HISTORY ---------------- */
-function saveSession(completed) {
-  const log = JSON.parse(localStorage.getItem("sessions") || "[]");
-  log.unshift({
-    date: new Date().toLocaleDateString(),
-    completed,
-    duration: boxes.reduce((a,b)=>a+b,0)
-  });
-  localStorage.setItem("sessions", JSON.stringify(log));
+/* ---------- BREAK ---------- */
+function startBreak(){
+  const grid=document.getElementById("grid");
+  const d=document.createElement("div");
+  d.className="box breakBox active";
+  grid.appendChild(d);
+
+  let left=breakSeconds;
+  function br(){
+    d.textContent=format(left--);
+    if(left<0) return;
+    setTimeout(br,1000);
+  }
+  br();
 }
 
-function toggleHistory() {
-  const h = document.getElementById("history");
+function showRepeat(){
+  document.getElementById("cancelBtn").classList.add("hidden");
+  document.getElementById("repeatBtn").classList.remove("hidden");
+}
+
+/* ---------- HISTORY ---------- */
+function saveSession(completed){
+  const log=JSON.parse(localStorage.getItem("sessions")||"[]");
+  log.unshift({
+    date:new Date().toLocaleString(),
+    completed
+  });
+  localStorage.setItem("sessions",JSON.stringify(log));
+}
+
+function toggleHistory(){
+  const h=document.getElementById("history");
   h.classList.toggle("hidden");
-  if (!h.classList.contains("hidden")) {
-    renderHistory();
+  if(!h.classList.contains("hidden")){
+    const log=JSON.parse(localStorage.getItem("sessions")||"[]");
+    h.innerHTML="<b>Previous Sessions</b><br><br>";
+    log.forEach(s=>{
+      h.innerHTML+=`${s.date} → ${s.completed?"✅":"❌"}<br>`;
+    });
   }
 }
 
-function renderHistory() {
-  const h = document.getElementById("history");
-  const log = JSON.parse(localStorage.getItem("sessions") || "[]");
-  h.innerHTML = "<h3>Sessions</h3>";
-  log.forEach(s => {
-    h.innerHTML += `${s.date} — ${s.duration} min — ${s.completed ? "✔" : "✖"}<br>`;
-  });
+/* ---------- UTILS ---------- */
+function format(t){
+  t=Math.max(0,t);
+  return `${String(Math.floor(t/60)).padStart(2,"0")}:${String(t%60).padStart(2,"0")}`;
 }
 
-/* ---------------- UTIL ---------------- */
-function format(sec) {
-  const m = Math.floor(sec/60);
-  const s = sec % 60;
-  return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+function tripleBell(){
+  for(let i=0;i<3;i++){
+    setTimeout(()=>{
+      const ctx=new AudioContext();
+      const o=ctx.createOscillator();
+      o.frequency.value=700;
+      o.connect(ctx.destination);
+      o.start();
+      o.stop(ctx.currentTime+0.15);
+    },i*300);
+  }
 }
 
-function bell() {
-  const ctx = new AudioContext();
-  const o = ctx.createOscillator();
-  o.frequency.value = 800;
-  o.connect(ctx.destination);
-  o.start();
-  o.stop(ctx.currentTime + 0.2);
+/* ---------- SW ---------- */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js');
 }
-
-/* ---------------- EVENTS ---------------- */
-startBtn.onclick = startSession;
-pauseBtn.onclick = pauseSession;
-resumeBtn.onclick = resumeSession;
-cancelBtn.onclick = cancelSession;
-repeatBtn.onclick = repeatSession;
-addBoxBtn.onclick = () => {
-  boxes.push(5);
-  localStorage.setItem("boxes", JSON.stringify(boxes));
-  renderBoxes();
-  renderSessionInfo();
-};
-historyToggle.onclick = toggleHistory;
 </script>
 
 </body>
