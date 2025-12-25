@@ -56,7 +56,8 @@ select,button{padding:8px 12px;margin:6px;font-size:16px;border-radius:10px;bord
 <div id="history" class="history hidden"></div>
 
 <script>
-let boxes=[], sessionStart=0, totalSessionSeconds=0, breakSeconds=0, breakRunning=false;
+let boxes=[], sessionStart=0, totalSessionSeconds=0;
+let breakSeconds=0, breakRunning=false;
 
 const hoursSel=document.getElementById("hours");
 const minutesSel=document.getElementById("minutes");
@@ -64,6 +65,7 @@ const boxSel=document.getElementById("boxDuration");
 const breakSel=document.getElementById("breakDuration");
 const plant=document.getElementById("plant");
 
+// Populate dropdowns
 for(let i=1;i<=8;i++) hoursSel.innerHTML+=`<option>${i}</option>`;
 for(let i=0;i<=55;i+=5) minutesSel.innerHTML+=`<option>${i}</option>`;
 [2.5,5,10,15,20,25,30].forEach(v=>boxSel.innerHTML+=`<option>${v}</option>`);
@@ -100,10 +102,10 @@ function updateLoop(){
   plant.style.height=(elapsed/totalSessionSeconds*100)+"%";
 
   let accumulated=0;
-  boxes.forEach((b)=>{
-    let start=accumulated,end=accumulated+b.duration; accumulated=end;
-    if(elapsed>=end){ b.el.className="box done"; b.el.textContent=format(0);}
-    else if(elapsed>=start){ b.el.className="box active"; b.el.textContent=format(Math.ceil(end-elapsed));}
+  boxes.forEach(b=>{
+    let start=accumulated, end=accumulated+b.duration; accumulated=end;
+    if(elapsed>=end){ b.el.className="box done"; b.el.textContent=format(0); }
+    else if(elapsed>=start){ b.el.className="box active"; b.el.textContent=format(Math.ceil(end-elapsed)); }
   });
 
   if(elapsed>=totalSessionSeconds && !breakRunning){
@@ -123,7 +125,7 @@ function startBreak(){
   function loop(){
     let left=Math.max(0,(end-Date.now())/1000);
     d.textContent=format(left);
-    if(left<=0){ tripleBell(); saveSession(totalSessionSeconds); return;}
+    if(left<=0){ tripleBell(); saveSession(totalSessionSeconds); breakRunning=false; return; }
     requestAnimationFrame(loop);
   }
   loop();
@@ -131,7 +133,8 @@ function startBreak(){
 
 function cancelSession(){
   let elapsed=Math.min((Date.now()-sessionStart)/1000,totalSessionSeconds);
-  saveSession(elapsed); resetAll();
+  saveSession(elapsed);
+  resetAll();
 }
 
 function saveSession(seconds){
@@ -171,7 +174,7 @@ function tripleBell(){
 
 // Register Service Worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js')
+  navigator.serviceWorker.register('sw.js?v=2')
   .then(()=>console.log('Service Worker registered'))
   .catch(err=>console.error('SW registration failed:', err));
 }
