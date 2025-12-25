@@ -1,13 +1,12 @@
 {
-  "background_color": "#020617",
-  "dir": "ltr",
-  "display": "standalone",
   "name": "Focus Study Timer",
   "short_name": "FocusTimer",
-  "orientation": "portrait",
+  "start_url": "./",
   "scope": "./",
-  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#020617",
   "theme_color": "#020617",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "icon-192.png",
