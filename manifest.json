@@ -2,10 +2,10 @@
   "background_color": "#020617",
   "dir": "ltr",
   "display": "standalone",
-  "name": "baljasem.github",
+  "name": "Focus Study Timer",
+  "short_name": "FocusTimer",
   "orientation": "portrait",
   "scope": "./",
-  "short_name": "baljasem.github",
-  "start_url": "/.index.html",
+  "start_url": "./index.html",
   "theme_color": "#020617"
 }
